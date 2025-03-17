@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TubeFetch - YouTube Downloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>🎬 TubeFetch - YouTube Playlist Downloader</h1>
+
+    <div class="container">
+        <input type="text" id="urlInput" placeholder="Enter YouTube Playlist URL">
+        <button onclick="searchVideos()">Search</button>
+    </div>
+
+    <h3>Video List</h3>
+    <ul id="videoList"></ul>
+
+    <button onclick="downloadVideos()">Download Selected</button>
+
+    <script>
+        function searchVideos() {
+            let url = document.getElementById('urlInput').value;
+            fetch('/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let videoList = document.getElementById('videoList');
+                videoList.innerHTML = '';
+                data.videos.forEach(video => {
+                    let listItem = document.createElement('li');
+                    listItem.innerHTML = `<input type="checkbox" value="${video.url}"> ${video.title}`;
+                    videoList.appendChild(listItem);
+                });
+            });
+        }
+
+        function downloadVideos() {
+            let selectedVideos = [];
+            document.querySelectorAll('#videoList input:checked').forEach(checkbox => {
+                selectedVideos.push({ url: checkbox.value });
+            });
+
+            fetch('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_urls: selectedVideos })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message));
+        }
+    </script>
+</body>
+</html>
