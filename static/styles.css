@@ -26,3 +26,11 @@ button {
 button:hover {
     background-color: #cc0000;
 }
+
+.hidden {
+    display: none;
+}
+
+.progress-container {
+    margin-top: 20px;
+}

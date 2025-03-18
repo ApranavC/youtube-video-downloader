@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TubeFetch - YouTube Downloader</title>
+    <title>TubeFetch - YouTube Playlist Downloader</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -12,6 +12,7 @@
     <div class="container">
         <input type="text" id="urlInput" placeholder="Enter YouTube Playlist URL">
         <button onclick="searchVideos()">Search</button>
+        <div id="loading" class="hidden">🔍 Searching...</div>
     </div>
 
     <h3>Video List</h3>
@@ -19,9 +20,16 @@
 
     <button onclick="downloadVideos()">Download Selected</button>
 
+    <div class="progress-container hidden">
+        <p>Downloading: <span id="downloadStatus">0%</span></p>
+        <progress id="downloadProgress" value="0" max="100"></progress>
+    </div>
+
     <script>
         function searchVideos() {
             let url = document.getElementById('urlInput').value;
+            document.getElementById('loading').classList.remove('hidden');
+
             fetch('/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -29,8 +37,10 @@
             })
             .then(response => response.json())
             .then(data => {
+                document.getElementById('loading').classList.add('hidden');
                 let videoList = document.getElementById('videoList');
                 videoList.innerHTML = '';
+
                 data.videos.forEach(video => {
                     let listItem = document.createElement('li');
                     listItem.innerHTML = `<input type="checkbox" value="${video.url}"> ${video.title}`;
@@ -45,13 +55,31 @@
                 selectedVideos.push({ url: checkbox.value });
             });
 
+            document.querySelector(".progress-container").classList.remove("hidden");
             fetch('/download', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ video_urls: selectedVideos })
-            })
-            .then(response => response.json())
-            .then(data => alert(data.message));
+            });
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            let progressBar = document.getElementById("downloadProgress");
+            let statusText = document.getElementById("downloadStatus");
+
+            let progress = 0;
+            let interval = setInterval(() => {
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    statusText.innerText = "Download Complete!";
+                } else {
+                    progress += 5; // Simulated progress update
+                    progressBar.value = progress;
+                    statusText.innerText = progress + "%";
+                }
+            }, 1000);
         }
     </script>
 </body>
