@@ -16,7 +16,16 @@
     </div>
 
     <h3>Video List</h3>
-    <ul id="videoList"></ul>
+    <table id="videoTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                <th>Title</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="videoList"></tbody>
+    </table>
 
     <button onclick="downloadVideos()">Download Selected</button>
 
@@ -26,6 +35,8 @@
     </div>
 
     <script>
+        let videoStatuses = {};
+
         function searchVideos() {
             let url = document.getElementById('urlInput').value;
             document.getElementById('loading').classList.remove('hidden');
@@ -42,20 +53,33 @@
                 videoList.innerHTML = '';
 
                 data.videos.forEach(video => {
-                    let listItem = document.createElement('li');
-                    listItem.innerHTML = `<input type="checkbox" value="${video.url}"> ${video.title}`;
-                    videoList.appendChild(listItem);
+                    videoStatuses[video.url] = "Pending"; 
+
+                    let row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="videoCheckbox" value="${video.url}"></td>
+                        <td>${video.title}</td>
+                        <td id="status-${video.url}">Pending</td>
+                    `;
+                    videoList.appendChild(row);
                 });
             });
         }
 
+        function toggleSelectAll(source) {
+            let checkboxes = document.querySelectorAll('.videoCheckbox');
+            checkboxes.forEach(checkbox => checkbox.checked = source.checked);
+        }
+
         function downloadVideos() {
             let selectedVideos = [];
-            document.querySelectorAll('#videoList input:checked').forEach(checkbox => {
+            document.querySelectorAll('.videoCheckbox:checked').forEach(checkbox => {
                 selectedVideos.push({ url: checkbox.value });
+                document.getElementById(`status-${checkbox.value}`).innerText = "Downloading...";
             });
 
             document.querySelector(".progress-container").classList.remove("hidden");
+
             fetch('/download', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -69,17 +93,24 @@
             let progressBar = document.getElementById("downloadProgress");
             let statusText = document.getElementById("downloadStatus");
 
-            let progress = 0;
             let interval = setInterval(() => {
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    statusText.innerText = "Download Complete!";
-                } else {
-                    progress += 5; // Simulated progress update
-                    progressBar.value = progress;
-                    statusText.innerText = progress + "%";
-                }
-            }, 1000);
+                fetch('/progress')
+                    .then(response => response.json())
+                    .then(data => {
+                        progressBar.value = data.progress;
+                        statusText.innerText = data.progress + "%";
+
+                        for (let url in data.video_statuses) {
+                            let status = data.video_statuses[url];
+                            document.getElementById(`status-${url}`).innerText = status;
+                        }
+
+                        if (data.progress >= 100) {
+                            clearInterval(interval);
+                            statusText.innerText = "Download Complete!";
+                        }
+                    });
+            }, 2000);
         }
     </script>
 </body>

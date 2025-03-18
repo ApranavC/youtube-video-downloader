@@ -1,17 +1,15 @@
 from flask import Flask, render_template, request, jsonify
 import threading
-import time
 from playlist_downloader import YouTubeDownloader
 
 app = Flask(__name__)
 downloader = YouTubeDownloader()
-
+video_statuses = {}
 
 @app.route('/')
 def home():
     """Load the web interface."""
     return render_template('index.html')
-
 
 @app.route('/search', methods=['POST'])
 def search():
@@ -22,14 +20,15 @@ def search():
     if not url:
         return jsonify({'error': 'YouTube URL is required'}), 400
 
-    videos = downloader.download_playlist(url)  # Fetch playlist details
+    videos = downloader.download_playlist(url)  
+    for video in videos:
+        video_statuses[video['url']] = "Pending"
 
     return jsonify({'videos': videos})
 
-
 @app.route('/download', methods=['POST'])
 def download():
-    """Download selected videos and track progress."""
+    """Download selected videos and update their status."""
     data = request.json
     video_urls = data.get('video_urls')
 
@@ -39,7 +38,16 @@ def download():
     def download_videos():
         total_videos = len(video_urls)
         for index, video in enumerate(video_urls):
-            downloader.download_video(video['url'], "720")
+            video_statuses[video['url']] = "Downloading..."
+            result = downloader.download_video(video['url'], "720")
+
+            if result["status"] == "Downloaded":
+                video_statuses[video['url']] = "Downloaded"
+            elif result["status"] == "Already downloaded":
+                video_statuses[video['url']] = "Already Downloaded"
+            else:
+                video_statuses[video['url']] = "Error"
+
             progress = int(((index + 1) / total_videos) * 100)
             downloader.update_progress(progress)
 
@@ -47,12 +55,10 @@ def download():
 
     return jsonify({'message': 'Download started'})
 
-
 @app.route('/progress')
 def get_progress():
     """Fetch current download progress."""
-    return jsonify({"progress": downloader.get_progress()})
-
+    return jsonify({"progress": downloader.get_progress(), "video_statuses": video_statuses})
 
 if __name__ == '__main__':
     app.run(debug=True)
